@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>바둑판 만능 대결: 냥이부터 슈퍼 AI까지! - 무료 웹 알까기·바둑·오목 게임</title>
+<meta name="description" content="고양이, 고라니, 3살 아기부터 20년차 고수, 천재 고릴라, 슈퍼 AI까지 10종의 개성 만점 캐릭터와 알까기, 9x9 미니바둑, 15x15 오목 대결을 즐길 수 있는 무료 웹 보드게임입니다.">
+<meta name="keywords" content="바둑판 만능 대결, 무료 오목 게임, 웹 알까기 게임, 미니바둑, 냥이 오목, AI 오목 대결">
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #1e293b 100%);
+    color: #f8fafc;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    overflow-x: hidden;
+  }
+  .screen {
+    width: 100%;
+    max-width: 720px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeIn 0.25s ease;
+  }
+  .screen.active {
+    display: flex;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 메인 타이틀 화면 */
+  .main-title {
+    font-size: clamp(26px, 5.5vw, 42px);
+    font-weight: 900;
+    text-align: center;
+    background: linear-gradient(to right, #fde047, #fb923c, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 20px rgba(251, 146, 60, 0.25);
+    margin-bottom: 6px;
+  }
+  .main-sub {
+    color: #cbd5e1;
+    font-size: clamp(13px, 2.6vw, 16px);
+    margin-bottom: 28px;
+    text-align: center;
+  }
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 560px) {
+    .mode-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .mode-card {
+    background: rgba(30, 41, 59, 0.85);
+    border: 2px solid rgba(148, 163, 184, 0.25);
+    border-radius: 20px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  }
+  .mode-card:hover, .mode-card:active {
+    transform: translateY(-4px) scale(1.02);
+    border-color: #facc15;
+    background: rgba(51, 65, 85, 0.95);
+    box-shadow: 0 14px 30px rgba(250, 204, 21, 0.25);
+  }
+  .mode-icon {
+    font-size: 46px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .mode-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .mode-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  /* 상대 선택 화면 */
+  .header-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .btn-small {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f8fafc;
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .btn-small:active {
+    transform: scale(0.95);
+  }
+  .tier-section {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .tier-label {
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tier-1 { color: #4ade80; }
+  .tier-2 { color: #38bdf8; }
+  .tier-3 { color: #facc15; }
+  .tier-4 { color: #fb923c; }
+  .tier-5 { color: #f43f5e; }
+
+  .char-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .char-btn {
+    flex: 1 1 140px;
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .char-btn:hover, .char-btn:active {
+    border-color: #fbbf24;
+    background: #283548;
+    transform: translateY(-2px);
+  }
+  .char-emoji {
+    font-size: 28px;
+  }
+  .char-info-name {
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .char-info-quote {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+
+  /* 게임 플레이 화면 */
+  .opponent-panel {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .opp-avatar {
+    font-size: 38px;
+    background: rgba(255,255,255,0.08);
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .opp-details {
+    flex: 1;
+    min-width: 0;
+  }
+  .opp-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .opp-name {
+    font-weight: 800;
+    font-size: 15px;
+  }
+  .opp-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.2);
+    color: #fde047;
+    font-weight: 700;
+  }
+  .speech-bubble {
+    background: #334155;
+    color: #f8fafc;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.35;
+    position: relative;
+    word-break: keep-all;
+  }
+
+  .status-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(30, 41, 59, 0.85);
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .canvas-container {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 1 / 1;
+    background: #deb887;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: pointer;
+  }
+
+  .action-bar {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-action {
+    flex: 1;
+    min-width: 100px;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    color: #fff;
+    background: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    transition: 0.15s;
+  }
+  .btn-action:active {
+    transform: scale(0.96);
+  }
+  .btn-confirm {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  }
+  .btn-secondary {
+    background: #475569;
+    box-shadow: none;
+  }
+
+  /* 결과 모달 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal-overlay.show {
+    display: flex;
+  }
+  .modal-box {
+    background: #1e293b;
+    border: 2px solid #facc15;
+    border-radius: 20px;
+    padding: 24px 20px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  }
+  .modal-emoji {
+    font-size: 54px;
+    margin-bottom: 8px;
+  }
+  .modal-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: #fde047;
+    margin-bottom: 8px;
+  }
+  .modal-desc {
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. 메인 시작 화면 -->
+<div id="screen-home" class="screen active">
+  <h1 class="main-title">🏆 바둑판 만능 대결</h1>
+  <p class="main-sub">냥이부터 슈퍼 AI까지! 원하는 종목을 선택해 승부를 겨뤄보세요.</p>
+
+  <div class="mode-grid">
+    <div class="mode-card" onclick="selectGameMode('alkkagi')">
+      <span class="mode-icon">🎯</span>
+      <div class="mode-name">알까기</div>
+      <div class="mode-desc">돌을 튕겨 상대 바둑돌을 모두 판 밖으로 날려버리세요!</div>
+    </div>
+    <div class="mode-card" onclick="selectGameMode('baduk')">
+      <span class="mode-icon">⚫⚪</span>
+      <div class="mode-name">바둑 (9×9)</div>
+      <div class="mode-desc">상대 돌을 둘러싸 따내고 더 많은 집을 차지하세요!</div>
+    </div>
+    <div class="mode-card" onclick="selectGameMode('omok')">
+      <span class="mode-icon">⭕❌</span>
+      <div class="mode-name">오목 (15×15)</div>
+      <div class="mode-desc">가로·세로·대각선으로 먼저 5줄을 완성하면 승리!</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. 난이도 & 캐릭터 선택 화면 -->
+<div id="screen-select" class="screen">
+  <div class="header-bar">
+    <button class="btn-small" onclick="goScreen('screen-home')">← 종목 다시 고르기</button>
+    <div id="selected-mode-badge" style="font-weight:800; color:#fde047;">종목: 오목</div>
+  </div>
+
+  <div id="character-tiers" style="width:100%;"></div>
+</div>
+
+<!-- 3. 실제 게임 플레이 화면 -->
+<div id="screen-game" class="screen">
+  <div class="header-bar">
+    <button class="btn-small" onclick="goScreen('screen-select')">← 상대 변경</button>
+    <div id="game-header-title" style="font-weight:800; color:#fde047;">오목 대결</div>
+    <button class="btn-small" onclick="restartMatch()">↻ 재대결</button>
+  </div>
+
+  <div class="opponent-panel">
+    <div class="opp-avatar" id="opp-avatar">🐱</div>
+    <div class="opp-details">
+      <div class="opp-name-row">
+        <span class="opp-name" id="opp-name">고양이</span>
+        <span class="opp-badge" id="opp-tier">매우 쉬움</span>
+      </div>
+      <div class="speech-bubble" id="opp-speech">냐옹~? (바둑돌을 톡 건드려본다)</div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="turn-indicator">⚫ 내 차례 (흑돌)</span>
+    <span id="score-indicator">남은 돌: 나 7 vs 상대 7</span>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="boardCanvas" width="600" height="600"></canvas>
+  </div>
+
+  <div class="action-bar" id="action-bar"></div>
+</div>
+
+<!-- 승패 결과 모달 -->
+<div class="modal-overlay" id="result-modal">
+  <div class="modal-box">
+    <div class="modal-emoji" id="modal-emoji">🏆</div>
+    <div class="modal-title" id="modal-title">승리했습니다!</div>
+    <div class="modal-desc" id="modal-desc">상대방이 고개를 끄덕이며 패배를 인정합니다.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-action btn-secondary" onclick="closeModalToSelect()">상대 선택</button>
+      <button class="btn-action btn-confirm" onclick="restartMatch()">한 판 더! ↻</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== 효과음 (Web Audio API) ====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  if (type === 'stone') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(95, now + 0.08);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.start(now); osc.stop(now + 0.08);
+  } else if (type === 'hit') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(580, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.1);
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.start(now); osc.stop(now + 0.1);
+  } else if (type === 'fall') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.linearRampToValueAtTime(75, now + 0.28);
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    osc.start(now); osc.stop(now + 0.28);
+  } else if (type === 'win') {
+    [523, 659, 784, 1046].forEach((f, idx) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(f, now + idx * 0.1);
+      g.gain.setValueAtTime(0.16, now + idx * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.25);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + idx * 0.1); o.stop(now + idx * 0.1 + 0.25);
+    });
+  } else if (type === 'lose') {
+    [330, 294, 262, 196].forEach((f, idx) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, now + idx * 0.12);
+      g.gain.setValueAtTime(0.12, now + idx * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.25);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + idx * 0.12); o.stop(now + idx * 0.12 + 0.25);
+    });
+  }
+}
+
+// ==================== 5단계 난이도 · 10종 캐릭터 데이터 ====================
+const CHARACTERS = [
+  {
+    id: 'cat', tier: 1, tierName: '매우 쉬움', tierClass: 'tier-1',
+    name: '고양이', emoji: '🐱', preview: '냐옹~? 아무 데나 꾹!',
+    quotes: {
+      start: '냐옹~? (바둑알을 앞발로 톡톡 건드려본다)',
+      move: ['냐아옹~ (엉뚱한 곳을 꾹 눌렀다!)', '그르릉... 여기가 따뜻하냥!', '야옹! (꼬리로 바둑판을 쓸고 지나갔다)'],
+      hit: '냐악?! 돌이 날아갔다냥!',
+      win: '냐옹~ 내가 이겼다냥! 츄르 내놓으라냥!',
+      lose: '냐아... (식빵을 굽고 잠들어버렸다)'
+    }
+  },
+  {
+    id: 'gorani', tier: 1, tierName: '매우 쉬움', tierClass: 'tier-1',
+    name: '고라니', emoji: '🦌', preview: '끼야아악?! 깜짝 놀라며 착수',
+    quotes: {
+      start: '화들짝! (큰 눈망울로 바둑판을 노려보며 뒷걸음질 친다)',
+      move: ['끼야아악!! (놀라서 아무 데나 뒀다!)', '흠칫! 여기 둬도 되는 건가...?', '푸르르... (풀 뜯어먹는 시늉을 한다)'],
+      hit: '끼야아아악!! 돌이 부딪혔다!!',
+      win: '끼약! 우연히 이겨버렸다!!',
+      lose: '끼야아악!! (놀라서 산속으로 도망쳤다)'
+    }
+  },
+  {
+    id: 'baby', tier: 1, tierName: '매우 쉬움', tierClass: 'tier-1',
+    name: '3살 아기', emoji: '👶', preview: '응애! 바둑돌이 신기한 아기',
+    quotes: {
+      start: '응애! 까까! (바둑돌을 입에 넣으려다 내려놓는다)',
+      move: ['부릉부릉~ 돌 자동차 간다!', '헤헤헤! 동그라미 예쁘다!', '응애! 여기 꾹!'],
+      hit: '우와아아! 떼굴떼굴 굴러간다!',
+      win: '까르르르! 만세에~!',
+      lose: '으아앙~ 졸려... (엄마 품으로 기어간다)'
+    }
+  },
+  {
+    id: 'collie', tier: 2, tierName: '쉬움', tierClass: 'tier-2',
+    name: '똑똑한 보더콜리', emoji: '🐕', preview: '멍! 한 줄 잇기에 집착하는 천재견',
+    quotes: {
+      start: '멍! 왈왈! (꼬리를 흔들며 정자세로 앉았다)',
+      move: ['멍! 내 돌 옆에 나란히 줄 세우기!', '낑낑... 여기가 좋은 자리 같아 멍!', '왈! 공놀이보다 재미있다 멍!'],
+      hit: '왈왈! 정확히 맞혔다 멍!',
+      win: '멍멍! 간식 줄 시간이다 멍!',
+      lose: '낑... (귀를 접고 앞발 위에 턱을 괴었다)'
+    }
+  },
+  {
+    id: 'kid', tier: 2, tierName: '쉬움', tierClass: 'tier-2',
+    name: '7살 유치원생', emoji: '🧒', preview: '헤헤 나 이거 3개 연결했다!',
+    quotes: {
+      start: '나 유치원에서 형아들한테 배웠어요! 시작해요!',
+      move: ['헤헤! 나 여기 둘래요!', '우와! 내 돌 길어지고 있어요!', '음... 여기 두면 못 막겠죠?'],
+      hit: '야호! 팡! 하고 날아갔어요!',
+      win: '만세!! 내가 어른 이겼다!!',
+      lose: '에잉... 다음엔 진짜 안 질 거예요!'
+    }
+  },
+  {
+    id: 'highschool', tier: 3, tierName: '보통', tierClass: 'tier-3',
+    name: '고등학생', emoji: '🎒', preview: '아 이거 각 나오는데? 점심시간 고수',
+    quotes: {
+      start: '야자 시간에 친구들이랑 맨날 두던 실력 좀 볼까?',
+      move: ['오, 이거 각 나오는데?', '방금 수 좀 괜찮았죠?', '그렇게 나오신다 이거죠~'],
+      hit: '나이스 샷! 각도 예술이었다 ㅋㅋ',
+      win: 'ㅋㅋ 역시 점심시간 랭커의 품격!',
+      lose: '아 까비! 한 수만 더 봤으면 이겼는데!'
+    }
+  },
+  {
+    id: 'adult', tier: 3, tierName: '보통', tierClass: 'tier-3',
+    name: '20대 보통 성인', emoji: '🧑', preview: '음, 공수 균형을 맞춰 무난하게 두자.',
+    quotes: {
+      start: '반갑습니다. 가볍게 한 판 즐겨보죠!',
+      move: ['일단 위험한 곳부터 막아두겠습니다.', '여기 두면 다음 수를 노려볼 만하네요.', '생각보다 만만치 않으시네요.'],
+      hit: '깔끔하게 한 점 밀어냈습니다.',
+      win: '좋은 승부였습니다! 한 수 배웠네요.',
+      lose: '완패네요. 수읽기가 한 수 위셨습니다!'
+    }
+  },
+  {
+    id: 'master', tier: 4, tierName: '어려움', tierClass: 'tier-4',
+    name: '20년차 고수', emoji: '🧓', preview: '허허, 벌써 빈틈이 보이는구나.',
+    quotes: {
+      start: '허허, 젊은 친구가 패기가 좋군. 어디 한번 두어보게.',
+      move: ['허허, 그 수는 이미 내다보고 있었네.', '기세로만 두어선 이길 수 없지.', '이 한 수가 판의 흐름을 바꿀 걸세.'],
+      hit: '손끝의 힘 조절이 핵심이라네.',
+      win: '허허, 아직 수련이 조금 더 필요하겠군.',
+      lose: '껄껄! 청출어람이로구나. 훌륭한 실력이야!'
+    }
+  },
+  {
+    id: 'gorilla', tier: 4, tierName: '어려움', tierClass: 'tier-4',
+    name: '천재 고릴라', emoji: '🦍', preview: '우호! (안경을 치켜올리며 정밀 계산)',
+    quotes: {
+      start: '우호! (지적인 눈빛으로 안경을 치켜올리며 바둑판을 스캔한다)',
+      move: ['우호, 우호! (완벽한 기하학적 수순을 계산했다)', '음... 7수 앞까지 승리 확률이 계산된다 우호.', '이 각도와 힘이면 완벽하다 우호!'],
+      hit: '우호! 물리 법칙대로 완벽히 튕겨 나갔다!',
+      win: '우호! 지능의 차이를 증명했다 우호! 🍌',
+      lose: '우호?! 내 계산에 오차가 있었다니... 인정한다 우호.'
+    }
+  },
+  {
+    id: 'ai', tier: 5, tierName: '매우 어려움', tierClass: 'tier-5',
+    name: '슈퍼 AI', emoji: '🤖', preview: '[승률 연산 완료: 99.8%]',
+    quotes: {
+      start: '[시스템 가동] 수백만 건의 기보 및 물리 시뮬레이션 로드 완료.',
+      move: ['[연산 완료] 최적의 승리 경로를 실행합니다.', '[경고] 당신의 승리 확률이 4.2%로 하락했습니다.', '[분석] 방어 불가한 다중 위협을 형성합니다.'],
+      hit: '[탄도 계산 일치] 목표 바둑돌 제거 완료.',
+      win: '[시뮬레이션 종료] 예측된 결과입니다. 재도전하시겠습니까?',
+      lose: '[오류 감지] 인간의 직관이 알고리즘을 돌파했습니다. 데이터를 갱신합니다.'
+    }
+  }
+];
+
+let currentMode = 'omok';
+let currentChar = CHARACTERS[0];
+let gameEnded = false;
+
+const canvas = document.getElementById('boardCanvas');
+const ctx = canvas.getContext('2d');
+
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function selectGameMode(mode) {
+  currentMode = mode;
+  const modeNames = { alkkagi: '🎯 알까기', baduk: '⚫⚪ 바둑 (9×9)', omok: '⭕❌ 오목 (15×15)' };
+  document.getElementById('selected-mode-badge').textContent = `종목: ${modeNames[mode]}`;
+  renderCharacterSelect();
+  goScreen('screen-select');
+}
+
+function renderCharacterSelect() {
+  const container = document.getElementById('character-tiers');
+  container.innerHTML = '';
+  const tiers = [
+    { tier: 1, title: '🌱 매우 쉬움 (입문)' },
+    { tier: 2, title: '🌿 쉬움 (초급)' },
+    { tier: 3, title: '🔥 보통 (중급)' },
+    { tier: 4, title: '⚡ 어려움 (고수)' },
+    { tier: 5, title: '👑 매우 어려움 (최종 보스)' }
+  ];
+
+  tiers.forEach(t => {
+    const sec = document.createElement('div');
+    sec.className = 'tier-section';
+    const chars = CHARACTERS.filter(c => c.tier === t.tier);
+    sec.innerHTML = `<div class="tier-label ${chars[0].tierClass}">${t.title}</div>`;
+    const row = document.createElement('div');
+    row.className = 'char-row';
+    chars.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'char-btn';
+      btn.innerHTML = `
+        <span class="char-emoji">${c.emoji}</span>
+        <div>
+          <div class="char-info-name">${c.name}</div>
+          <div class="char-info-quote">${c.preview}</div>
+        </div>
+      `;
+      btn.onclick = () => startMatch(c);
+      row.appendChild(btn);
+    });
+    sec.appendChild(row);
+    container.appendChild(sec);
+  });
+}
+
+function setSpeech(text) {
+  document.getElementById('opp-speech').textContent = text;
+}
+function randomQuote(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function startMatch(charObj) {
+  currentChar = charObj;
+  gameEnded = false;
+  document.getElementById('result-modal').classList.remove('show');
+  document.getElementById('opp-avatar').textContent = charObj.emoji;
+  document.getElementById('opp-name').textContent = charObj.name;
+  document.getElementById('opp-tier').textContent = charObj.tierName;
+  setSpeech(charObj.quotes.start);
+
+  const modeTitles = { alkkagi: '🎯 알까기 대결', baduk: '⚫⚪ 바둑 대결 (9×9)', omok: '⭕❌ 오목 대결' };
+  document.getElementById('game-header-title').textContent = modeTitles[currentMode];
+
+  goScreen('screen-game');
+  if (currentMode === 'omok') initOmok();
+  else if (currentMode === 'baduk') initBaduk();
+  else if (currentMode === 'alkkagi') initAlkkagi();
+}
+
+function restartMatch() {
+  startMatch(currentChar);
+}
+
+function closeModalToSelect() {
+  document.getElementById('result-modal').classList.remove('show');
+  goScreen('screen-select');
+}
+
+function showResult(isWin, customDesc) {
+  if (gameEnded) return;
+  gameEnded = true;
+  playSound(isWin ? 'win' : 'lose');
+  setSpeech(isWin ? currentChar.quotes.lose : currentChar.quotes.win);
+
+  document.getElementById('modal-emoji').textContent = isWin ? '🏆' : currentChar.emoji;
+  document.getElementById('modal-title').textContent = isWin ? '승리했습니다!' : `${currentChar.name}의 승리!`;
+  document.getElementById('modal-desc').textContent = customDesc || (isWin ? currentChar.quotes.lose : currentChar.quotes.win);
+  setTimeout(() => {
+    document.getElementById('result-modal').classList.add('show');
+  }, 450);
+}
+
+// ==================== 1. 오목 (15x15) ====================
+const OMOK_SIZE = 15;
+let omokBoard = [];
+let omokTurn = 1; // 1: 플레이어(흑), 2: 상대(백)
+let omokPreview = null;
+let omokLastMove = null;
+
+function initOmok() {
+  omokBoard = Array.from({ length: OMOK_SIZE }, () => Array(OMOK_SIZE).fill(0));
+  omokTurn = 1;
+  omokPreview = null;
+  omokLastMove = null;
+  updateOmokUI();
+  drawOmok();
+}
+
+function updateOmokUI() {
+  document.getElementById('turn-indicator').textContent = omokTurn === 1 ? '⚫ 내 차례 (흑돌)' : `⚪ ${currentChar.name} 고민 중...`;
+  document.getElementById('score-indicator').textContent = '15×15 표준 오목판';
+  const bar = document.getElementById('action-bar');
+  bar.innerHTML = '';
+  if (omokTurn === 1 && omokPreview) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-action btn-confirm';
+    btn.textContent = '✅ 이 자리에 착수 확정';
+    btn.onclick = () => confirmOmokMove(omokPreview.r, omokPreview.c);
+    bar.appendChild(btn);
+  }
+}
+
+function drawOmok() {
+  const W = canvas.width;
+  const pad = 32;
+  const cell = (W - pad * 2) / (OMOK_SIZE - 1);
+
+  ctx.fillStyle = '#deb887';
+  ctx.fillRect(0, 0, W, W);
+
+  // 격자선
+  ctx.strokeStyle = '#5c4033';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < OMOK_SIZE; i++) {
+    const pos = pad + i * cell;
+    ctx.beginPath(); ctx.moveTo(pad, pos); ctx.lineTo(W - pad, pos); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pos, pad); ctx.lineTo(pos, W - pad); ctx.stroke();
+  }
+
+  // 화점
+  const stars = [3, 7, 11];
+  ctx.fillStyle = '#3e2723';
+  stars.forEach(r => stars.forEach(c => {
+    ctx.beginPath();
+    ctx.arc(pad + c * cell, pad + r * cell, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }));
+
+  // 바둑돌
+  for (let r = 0; r < OMOK_SIZE; r++) {
+    for (let c = 0; c < OMOK_SIZE; c++) {
+      if (omokBoard[r][c] !== 0) {
+        drawStone(pad + c * cell, pad + r * cell, cell * 0.43, omokBoard[r][c] === 1);
+      }
+    }
+  }
+
+  // 마지막 수 표시
+  if (omokLastMove) {
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(pad + omokLastMove.c * cell, pad + omokLastMove.r * cell, cell * 0.2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 조준 미리보기
+  if (omokTurn === 1 && omokPreview) {
+    const px = pad + omokPreview.c * cell;
+    const py = pad + omokPreview.r * cell;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    drawStone(px, py, cell * 0.43, true);
+    ctx.restore();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px - cell * 0.46, py - cell * 0.46, cell * 0.92, cell * 0.92);
+  }
+}
+
+function drawStone(x, y, radius, isBlack) {
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fill();
+
+  const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
+  if (isBlack) {
+    grad.addColorStop(0, '#475569');
+    grad.add
